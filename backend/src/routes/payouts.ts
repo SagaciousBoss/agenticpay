@@ -233,11 +233,12 @@ payoutsRouter.post(
   idempotency(),
   payoutDecisionLimiter,
   asyncHandler(async (req, res) => {
-    const approver = toApprover(requireApprover(req));
+const approver = toApprover(requireApprover(req));
+    const batchId = requireId(req.params.batchId, 'batchId');
     try {
-      const approved = await payoutEngine.approveManualPayout(requireId(req.params.batchId, 'batchId'), approver);
+      const approved = await payoutEngine.approveManualPayout(batchId, approver);
       if (!approved) throw new AppError(409, 'Batch is not awaiting approval', 'INVALID_PAYOUT_STATE');
-      res.json({ data: payoutEngine.getBatch(req.params.batchId) });
+      res.json({ data: payoutEngine.getBatch(batchId) });
     } catch (error) {
       throw asHttpError(error);
     }
@@ -249,11 +250,12 @@ payoutsRouter.post(
   idempotency(),
   payoutDecisionLimiter,
   asyncHandler(async (req, res) => {
-    const approver = toApprover(requireApprover(req));
+const approver = toApprover(requireApprover(req));
+    const batchId = requireId(req.params.batchId, 'batchId');
     try {
-      const rejected = await payoutEngine.rejectManualPayout(requireId(req.params.batchId, 'batchId'), approver);
+      const rejected = await payoutEngine.rejectManualPayout(batchId, approver);
       if (!rejected) throw new AppError(409, 'Batch is not awaiting approval', 'INVALID_PAYOUT_STATE');
-      res.json({ data: payoutEngine.getBatch(req.params.batchId) });
+      res.json({ data: payoutEngine.getBatch(batchId) });
     } catch (error) {
       throw asHttpError(error);
     }
@@ -265,11 +267,12 @@ payoutsRouter.post(
   idempotency(),
   payoutDecisionLimiter,
   asyncHandler(async (req, res) => {
-    const approver = toApprover(requireApprover(req));
+const approver = toApprover(requireApprover(req));
+    const batchId = requireId(req.params.batchId, 'batchId');
     try {
-      const retried = await payoutEngine.retryFailedBatch(requireId(req.params.batchId, 'batchId'), approver);
+      const retried = await payoutEngine.retryFailedBatch(batchId, approver);
       if (!retried) throw new AppError(409, 'Batch is not retryable', 'INVALID_PAYOUT_STATE');
-      res.json({ data: payoutEngine.getBatch(req.params.batchId) });
+      res.json({ data: payoutEngine.getBatch(batchId) });
     } catch (error) {
       throw asHttpError(error);
     }
@@ -281,11 +284,12 @@ payoutsRouter.post(
   idempotency(),
   payoutDecisionLimiter,
   asyncHandler(async (req, res) => {
-    const approver = toApprover(requireApprover(req));
+const approver = toApprover(requireApprover(req));
+    const batchId = requireId(req.params.batchId, 'batchId');
     try {
-      const released = await payoutEngine.releaseReservedFunds(requireId(req.params.batchId, 'batchId'), approver);
+      const released = await payoutEngine.releaseReservedFunds(batchId, approver);
       if (!released) throw new AppError(409, 'Batch has no releasable reservation', 'INVALID_PAYOUT_STATE');
-      res.json({ data: payoutEngine.getBatch(req.params.batchId) });
+      res.json({ data: payoutEngine.getBatch(batchId) });
     } catch (error) {
       throw asHttpError(error);
     }
