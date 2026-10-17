@@ -57,7 +57,7 @@ export const SUPPORTED_FIAT_PAIRS: Readonly<Record<string, number>> = Object.fre
 export const MAX_FIAT_CONVERSION_AMOUNT = 100_000;
 
 const rateLocks = new Map<string, RateLock>();
-const conversions = Map<string, ConversionRecord>();
+const conversions = new Map<string, ConversionRecord>();
 const refundsInFlight = new Set<string>();
 
 const STELLAR_USDC_ISSUER = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
@@ -76,11 +76,11 @@ function pairKey(fromCurrency: string, toAsset: string): string {
  * @throws Error `UNSUPPORTED_FIAT_PAIR` when the pair is not quoted.
  */
 function getCurrentRate(fromCurrency: string, toAsset: string): number {
-  const rate = SUPPORTED_FIAT_PAIRS[pairKey(fromCurrency, toAsset)];
-  if (rate === undefined) {
-    throw new Error(`UNSUPPORTED_FIAT_PAIR: ${pairKey(fromCurrency, toAsset)} is not quoted`);
+  const key = pairKey(fromCurrency, toAsset);
+  if (!Object.prototype.hasOwnProperty.call(SUPPORTED_FIAT_PAIRS, key)) {
+    throw new Error(`UNSUPPORTED_FIAT_PAIR: ${key} is not quoted`);
   }
-  return rate;
+  return SUPPORTED_FIAT_PAIRS[key];
 }
 
 function assertNonEmptyId(value: unknown, field: string): string {
@@ -92,6 +92,17 @@ function assertNonEmptyId(value: unknown, field: string): string {
 
 function snapshot(record: ConversionRecord): ConversionRecord {
   return { ...record };
+}
+
+/** Parses a positive settlement amount, collapsing every failure mode onto one sentinel. */
+function parseSettlementAmount(amount: string): bigint {
+  try {
+    const minor = parseDecimalToMinor(amount, CRYPTO_DECIMALS);
+    if (minor > 0n) return minor;
+  } catch {
+    // Any malformed amount falls through to the sentinel below.
+  }
+  throw new Error('INVALID_SETTLEMENT_AMOUNT');
 }
 
 /** Converts a fiat amount into the exact crypto amount at `rate`, without float drift. */
@@ -171,16 +182,8 @@ export async function confirmConversion(rateLockId: string, userId: string, stri
 
 export async function settleToStellar(destinationAddress: string, amount: string, asset: string): Promise<string> {
   assertNonEmptyId(destinationAddress, 'destination_address');
+  parseSettlementAmount(amount);
 
-  let amountMinor: bigint;
-  try {
-    amountMinor = parseDecimalToMinor(amount, CRYPTO_DECIMALS);
-  } catch {
-    throw new Error('INVALID_SETTLEMENT_AMOUNT');
-  }
-  if (amountMinor <= 0n) {
-    throw new Error('INVALID_SETTLEMENT_AMOUNT');
-  }
   if (!STELLAR_ADDRESS_PATTERN.test(destinationAddress)) {
     throw new Error('INVALID_DESTINATION_ADDRESS');
   }
@@ -245,5 +248,5 @@ export function getRate(fromCurrency: string, toAsset: string): number {
 
 /** True when the pair has a quoted rate. */
 export function isSupportedFiatPair(fromCurrency: string, toAsset: string): boolean {
-  return SUPPORTED_FIAT_PAIRS[pairKey(fromCurrency, toAsset)] !== undefined;
+  return Object.prototype.hasOwnProperty.call(SUPPORTED_FIAT_PAIRS, pairKey(fromCurrency, toAsset));
 }

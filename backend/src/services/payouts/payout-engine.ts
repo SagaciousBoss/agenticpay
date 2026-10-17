@@ -28,6 +28,9 @@ export const PAYOUT_ASSET_DECIMALS: Readonly<Record<PayoutAsset, number>> = Obje
   EURC: 6,
 });
 
+/** Fallback scale for an asset with no entry above; unused for allowlisted assets. */
+export const DEFAULT_PAYOUT_ASSET_DECIMALS = 6;
+
 /** Engine-level ceiling on a single batch, independent of any approver's limit. */
 export const DEFAULT_PAYOUT_MAX_BATCH_AMOUNT = 1_000_000;
 
@@ -208,7 +211,8 @@ function resolvePositiveLimit(value: number | undefined, fallback: number, code:
 }
 
 function assetDecimals(asset: string): number {
-  return PAYOUT_ASSET_DECIMALS[asset as PayoutAsset] ?? 6;
+  const decimals = (PAYOUT_ASSET_DECIMALS as Record<string, number | undefined>)[asset];
+  return decimals ?? DEFAULT_PAYOUT_ASSET_DECIMALS;
 }
 
 export class PayoutEngine {
@@ -314,7 +318,7 @@ export class PayoutEngine {
 
       for (const schedule of this.schedules) {
         try {
-          const created = this.materialiseBatch(schedule);
+          const created = await this.materialiseBatch(schedule);
           if (!created) continue;
           executedBatches.push(created);
         } catch (error) {
