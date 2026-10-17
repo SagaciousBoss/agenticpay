@@ -73,6 +73,7 @@ import { searchRouter } from './routes/search.js';
 import { zapierRouter } from './routes/zapier.js';
 import { intercomRouter } from './routes/intercom.js';
 import { allowancesRouter } from './routes/allowances.js';
+import { payoutsRouter } from './routes/payouts.js';
 import { getPrismaReplicaClient } from './db/PrismaReplicaClient.js';
 import { cohortAnalyticsRouter } from './routes/cohort-analytics.js';
 import { churnPredictionRouter } from './routes/churn-prediction.js';
@@ -288,6 +289,7 @@ apiV1Router.use('/queue/payments', paymentQueueRouter);
 apiV1Router.use('/splits', splitsRouter);
 apiV1Router.use('/refunds', refundsRouter);
 apiV1Router.use('/allowances', allowancesRouter);
+apiV1Router.use('/payouts', payoutsRouter);
 apiV1Router.use('/forms', formsRouter);
 // Webhook management and verification
 apiV1Router.use('/webhooks', webhooksRouter);

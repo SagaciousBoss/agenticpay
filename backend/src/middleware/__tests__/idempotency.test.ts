@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response } from 'express';
-import { idempotency, clearIdempotencyCache } from '../idempotency.js';
+import { idempotency, clearIdempotencyCache, getIdempotencyCacheStats } from '../idempotency.js';
 
 function makeReq(overrides: Partial<Request> = {}): Request {
   return {
@@ -150,5 +150,91 @@ describe('idempotency middleware', () => {
     mw(req2, res2, next2);
 
     expect(next2).toHaveBeenCalledOnce();
+  });
+});
+
+describe('idempotency middleware payload fingerprinting', () => {
+  beforeEach(() => {
+    clearIdempotencyCache();
+  });
+
+  /** Runs one request through the middleware and returns the mocked response plus `next`. */
+  function send(key: string, body: unknown) {
+    const req = makeReq({ method: 'POST', headers: { 'idempotency-key': key }, body });
+    const { res } = makeRes();
+    const next = vi.fn();
+    idempotency()(req, res, next);
+    return { res, next };
+  }
+
+  function respond(res: Response, statusCode: number, body: unknown) {
+    res.statusCode = statusCode;
+    (res.json as ReturnType<typeof vi.fn>)(body);
+  }
+
+  it('rejects reuse of a key with a different payload', () => {
+    respond(send('key-x', { amount: 100 }).res, 201, { id: 'payment_1' });
+
+    const second = send('key-x', { amount: 999 });
+
+    expect(second.res.status).toHaveBeenCalledWith(409);
+    expect(second.res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'idempotency_key_reuse_mismatch' }),
+    );
+    expect(second.next).not.toHaveBeenCalled();
+  });
+
+  it('replays the cached response when the payload matches', () => {
+    respond(send('key-y', { amount: 100 }).res, 201, { id: 'payment_1' });
+
+    const second = send('key-y', { amount: 100 });
+
+    expect(second.res.status).toHaveBeenCalledWith(201);
+    expect(second.res.json).toHaveBeenCalledWith({ id: 'payment_1' });
+    expect(second.next).not.toHaveBeenCalled();
+  });
+
+  it('treats a differently ordered payload as the same request', () => {
+    respond(send('key-z', { amount: 100, currency: 'USD' }).res, 200, { id: 'payment_1' });
+
+    const second = send('key-z', { currency: 'USD', amount: 100 });
+
+    expect(second.res.status).toHaveBeenCalledWith(200);
+    expect(second.next).not.toHaveBeenCalled();
+  });
+
+  it('detects a changed nested field', () => {
+    respond(send('key-n', { meta: { tags: ['a'] } }).res, 200, { id: 'payment_1' });
+
+    const second = send('key-n', { meta: { tags: ['b'] } });
+
+    expect(second.res.status).toHaveBeenCalledWith(409);
+  });
+});
+
+describe('idempotency middleware cache bounds', () => {
+  beforeEach(() => {
+    clearIdempotencyCache();
+  });
+
+  it('evicts the oldest entries once the limit is reached', () => {
+    const mw = idempotency(60_000, 2);
+
+    for (const key of ['a', 'b', 'c']) {
+      const req = makeReq({ headers: { 'idempotency-key': key } });
+      const { res } = makeRes();
+      mw(req, res, vi.fn());
+      res.statusCode = 200;
+      (res.json as ReturnType<typeof vi.fn>)({ key });
+    }
+
+    expect(getIdempotencyCacheStats().cachedKeys).toBe(2);
+
+    // The oldest entry was evicted, so it executes again instead of replaying.
+    const req = makeReq({ headers: { 'idempotency-key': 'a' } });
+    const { res } = makeRes();
+    const next = vi.fn();
+    mw(req, res, next);
+    expect(next).toHaveBeenCalledOnce();
   });
 });

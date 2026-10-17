@@ -16,8 +16,10 @@ Use this page as the entry point for the repository's maintained guides. API-spe
 - [Instant transfers](INSTANT_TRANSFERS.md)
 - [Marketplace escrow](MARKETPLACE_ESCROW.md)
 - [Payment links](PAYMENT_LINKS.md)
+- [Payment correctness](PAYMENT_CORRECTNESS.md)
 - [Payment provider routing](PAYMENT_ROUTING.md)
 - [Payout approvals](PAYOUT_APPROVALS.md)
+- [Payout reliability](PAYOUT_RELIABILITY.md)
 - [Subscription usage billing](SUBSCRIPTION_USAGE_BILLING.md)
 - [Wallet payments](WALLET_PAYMENTS.md)
 - [Withdrawal approval security](WITHDRAWAL_SECURITY.md)
@@ -27,6 +29,7 @@ Use this page as the entry point for the repository's maintained guides. API-spe
 - [API documentation](API-DOCS.md)
 - [SDK overview](sdk/README.md)
 - [SDK error handling](sdk/ERROR-HANDLING.md)
+- [Payment and payout security](security/payment-security.md)
 - [Webhook signature verification](security/webhook-signatures.md)
 
 ## Operations and security

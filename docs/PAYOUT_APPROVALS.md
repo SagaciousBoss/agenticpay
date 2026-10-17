@@ -2,6 +2,9 @@
 
 Large payouts are held for human review instead of executing automatically.
 
+> Approval is one step in a larger lifecycle. For the settlement path, retry policy and
+> reservation handling, see [Payout reliability](PAYOUT_RELIABILITY.md).
+
 ## When approval is required
 
 A payout batch is created with status `pending` when either condition is true:
@@ -40,6 +43,10 @@ failed  -> pending                (retried, back into the approval queue)
 
 A rejected batch cannot be retried. Create a new payout from the merchant's pending balance instead,
 so the rejection cannot be bypassed.
+
+A manual retry only returns the batch to the approval queue; it does not settle it. A batch
+that exhausted its retry budget keeps its reservation until an approver releases it — see
+[Payout reliability](PAYOUT_RELIABILITY.md#retry-policy).
 
 ## Audit trail
 
