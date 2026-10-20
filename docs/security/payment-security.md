@@ -97,6 +97,14 @@ signal; see [payout reliability](../PAYOUT_RELIABILITY.md#operating-the-queue).
 - Exhausted retries keep the reservation instead of re-queueing it, which prevents an
   unattended retry loop against a failing rail.
 
+## Signed payout requests
+
+The reusable payout security helper verifies `sha256=<hex-digest>` (or the equivalent
+bare hex digest) as an HMAC-SHA256 over the exact request payload. The secret is used as
+the MAC key, and the decoded digests are compared in constant time. Plain hash
+concatenation and string equality are not accepted because they do not provide the same
+authentication or comparison guarantees.
+
 ## Rate locks and conversions
 
 - A rate lock is owned by its creator and can be spent exactly once.

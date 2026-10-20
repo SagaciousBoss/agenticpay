@@ -25,7 +25,10 @@ import allowancesRouter from './routes/allowances.js';
 import { formsRouter } from './routes/forms.js';
 import { twoFactorAuthRouter } from './routes/2fa.js';
 import { webhooksRouter } from './routes/webhooks.js';
+import webhooksDlqRouter from './routes/webhooks-dlq.js';
+import { apiVersionsRouter } from './routes/api-versions.js';
 import { webhookHandlersRouter } from './routes/webhookHandlers.js';
+import { webhookJsonParser } from './middleware/webhookVerification.js';
 import { startJobs, getJobScheduler } from './jobs/index.js';
 import { batchProcessor } from './services/batch.js';
 import { featureFlags } from './config/featureFlags.js';
@@ -54,6 +57,10 @@ import { notificationsRouter } from './routes/notifications.js';
 import { auditRouter } from './routes/audit.js';
 import { hedgingRouter } from './routes/hedging.js';
 import { complianceRouter } from './routes/compliance.js';
+import { amlMonitoringRouter } from './routes/aml-monitoring.js';
+import { sanctionsScreeningRouter } from './routes/sanctions.js';
+import { pciDssRouter } from './routes/pci-dss.js';
+import { nanoRouter } from './routes/nano.js';
 import { gdprRouter } from './routes/gdpr.js';
 import dataExportRouter from './routes/dataExport.js';
 import securityRouter from './routes/security.js';
@@ -74,15 +81,27 @@ import { zapierRouter } from './routes/zapier.js';
 import { intercomRouter } from './routes/intercom.js';
 import { allowancesRouter } from './routes/allowances.js';
 import { payoutsRouter } from './routes/payouts.js';
+import { startPayoutRetryWorker } from './services/payouts/retry-worker.js';
+import { startPayoutBatchWorker } from './services/payouts/payout-batcher.js';
 import { getPrismaReplicaClient } from './db/PrismaReplicaClient.js';
 import { cohortAnalyticsRouter } from './routes/cohort-analytics.js';
 import { churnPredictionRouter } from './routes/churn-prediction.js';
 import { slackRouter } from './routes/slack.js';
 import { githubIntegrationRouter } from './routes/github-integration.js';
+import { wooCommerceRouter } from './routes/woocommerce.js';
+import { salesforceRouter } from './routes/salesforce.js';
+import { xeroRouter } from './routes/xero.js';
+import { quickBooksRouter } from './routes/quickbooks.js';
+import { pluginsRouter } from './routes/plugins.js';
+import { devWebhookRouter } from './routes/dev/webhook.js';
 import { funnelTrackingRouter } from './routes/funnel-tracking.js';
 import { mlForecastRouter } from './routes/ml-forecast.js';
 import { abTestingRouter } from './routes/ab-testing.js';
 import { customerHealthRouter } from './routes/customer-health.js';
+import { pnlRouter } from './routes/pnl.js';
+import { clvRouter } from './routes/clv.js';
+import { paymentMethodAnalyticsRouter } from './routes/payment-method-analytics.js';
+import { cashFlowRouter } from './routes/cash-flow.js';
 import { kybRouter } from './routes/kyb.js';
 import { kycRouter } from './routes/kyc.js';
 import { batchRouter } from './routes/batch.js';
@@ -132,6 +151,7 @@ import { getScheduledTasks } from './config/scheduled-tasks.js';
 import { bullMQMonitorRouter } from './routes/bullmq-monitor.js';
 import { fileUploadRouter } from './routes/file-upload.js';
 import { credentialRotationRouter } from './routes/credential-rotation.js';
+import { providerCredentialsRouter } from './routes/provider-credentials.js';
 import zkIdentityRouter from './routes/zk-identity.js';
 import { coldStartMonitorRouter } from './routes/cold-start-monitor.js';
 import { rateLimitAnalyticsRouter } from './routes/rate-limit-analytics.js';
@@ -148,6 +168,9 @@ import { jobQueueRouter } from './routes/job-queue.js';
 import { recurringBillingRouter } from './routes/recurring-billing.js';
 import { splitPaymentsRouter } from './routes/split-payments.js';
 import { transfersRouter } from './routes/transfers.js';
+import { threeDSRouter } from './routes/3ds.js';
+import { chargebacksRouter } from './routes/chargebacks.js';
+import { merchantRiskRouter } from './routes/merchant-risk.js';
 
 // Validate environment variables at startup
 validateEnv();
@@ -228,6 +251,14 @@ app.use(httpLogger);
 // Incoming webhooks: raw body capture before global JSON parser (#393)
 app.use('/webhooks', webhookHandlersRouter);
 
+// Bank-partner payout webhooks need the raw body for HMAC verification (#1006).
+// Mounted before the global JSON parser so `req.rawBody` is populated.
+app.use('/api/v1/fiat-payments/webhooks', webhookJsonParser);
+
+// WooCommerce webhooks are signed over the raw body (#954). Mounted before the
+// global JSON parser so `req.rawBody` is populated for HMAC verification.
+app.use('/api/v1/integrations/woocommerce/webhooks', webhookJsonParser);
+
 // KYC document uploads carry base64 file contents (up to 10 MB decoded) (#921)
 app.use('/api/v1/kyc', express.json({ limit: '15mb' }));
 app.use(express.json());
@@ -247,6 +278,11 @@ app.use(cacheControlNoStore);
 
 app.use(healthRouter);
 app.use('/docs', docsRouter);
+
+// Local webhook inspection endpoint. Never expose it in production.
+if (!config.isProd) {
+  app.use('/api/dev/webhooks', devWebhookRouter);
+}
 
 // Cold start monitoring dashboard — available before auth/rate-limit middleware
 app.use('/api/v1/cold-start', coldStartMonitorRouter);
@@ -330,10 +366,19 @@ apiV1Router.use('/analytics/cohorts', cohortAnalyticsRouter);
 apiV1Router.use('/analytics/churn', churnPredictionRouter);
 apiV1Router.use('/integrations/slack', slackRouter);
 apiV1Router.use('/integrations/github', githubIntegrationRouter);
+apiV1Router.use('/integrations/woocommerce', wooCommerceRouter);
+apiV1Router.use('/integrations/salesforce', salesforceRouter);
+apiV1Router.use('/integrations/xero', xeroRouter);
+apiV1Router.use('/integrations/quickbooks', quickBooksRouter);
+apiV1Router.use('/plugins', pluginsRouter);
 apiV1Router.use('/funnels', funnelTrackingRouter);
 apiV1Router.use('/forecast/ml', mlForecastRouter);
 apiV1Router.use('/ab-tests', abTestingRouter);
 apiV1Router.use('/customer-health', customerHealthRouter);
+apiV1Router.use('/reports/pnl', pnlRouter);
+apiV1Router.use('/clv', clvRouter);
+apiV1Router.use('/payment-methods/analytics', paymentMethodAnalyticsRouter);
+apiV1Router.use('/cash-flow', cashFlowRouter);
 apiV1Router.use('/nfc', nfcRouter);
 apiV1Router.use('/cache', cacheRouter);
 apiV1Router.use('/circuit-breaker', circuitBreakerRouter);
@@ -355,6 +400,12 @@ apiV1Router.use('/job-queue', jobQueueRouter);
 apiV1Router.use('/recurring-payments', recurringBillingRouter);
 apiV1Router.use('/split-payments', splitPaymentsRouter);
 apiV1Router.use('/transfers', transfersRouter);
+// 3D Secure card-payment authentication — Issue #925
+apiV1Router.use('/3ds', threeDSRouter);
+// Merchant onboarding risk tiering — Issue #928
+apiV1Router.use('/merchant-risk', merchantRiskRouter);
+// Chargeback management with evidence submission — Issue #926
+apiV1Router.use('/chargebacks', chargebacksRouter);
 apiV1Router.get('/compression/metrics', (_req, res) => {
   res.json(getCompressionMetrics());
 });
@@ -368,10 +419,16 @@ app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/audit', auditRouter);
 app.use('/api/v1/hedging', hedgingRouter);
 app.use('/api/v1/compliance', complianceRouter);
+app.use('/api/v1/aml', amlMonitoringRouter);
+app.use('/api/v1/sanctions', sanctionsScreeningRouter);
+app.use('/api/v1/pci-dss', pciDssRouter);
+app.use('/api/v1/nano', nanoRouter);
 app.use('/api/v1/gdpr', gdprRouter);
 app.use('/api/v1/escrow', escrowRouter);
 app.use('/api/v1/multisig', multisigRouter);
 app.use('/api/v1/webhooks', webhooksRouter);
+app.use('/api/v1/webhooks', webhooksDlqRouter);
+app.use('/api/v1/api-versions', apiVersionsRouter);
 app.use('/api/v1/fraud-detection', fraudDetectionRouter);
 app.use('/api/v1/bridge', bridgeRouter);
 app.use('/api/v1/tokenization', tokenizationRouter);
@@ -390,6 +447,7 @@ app.use('/api/v1/uploads', fileUploadRouter);
 
 // Credential rotation management with dual-key overlap and audit trail (Issue #395)
 app.use('/api/v1/credentials', credentialRotationRouter);
+app.use('/api/v1/provider-credentials', providerCredentialsRouter);
 
 // Microservices service mesh — registry, discovery, circuit breakers
 app.use('/api/v1/service-mesh', serviceMeshRouter);
@@ -507,6 +565,12 @@ server.listen(config.server.port, () => {
   setImmediate(() => {
     // Load Sentry profiling integration now that the process is warm
     loadProfilingIntegration();
+
+    // Payout retry worker: drives backed-off payout retries without a manual call
+    startPayoutRetryWorker();
+
+    // Payout batch worker: sends due scheduled payouts in provider batches (#1008)
+    startPayoutBatchWorker();
 
     // Job scheduler
     if (config.jobs.enabled) {

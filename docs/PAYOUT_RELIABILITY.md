@@ -150,6 +150,11 @@ Amounts must be positive, finite, and at most `1_000_000`. Assets are restricted
 4. Alert on `payout.delayed` bursts: a rail that is timing out rather than rejecting will
    keep every batch in retry for minutes.
 
+The scheduled payout worker also has an in-flight guard. A slow provider call cannot
+overlap the next timer tick, and a rejected pass is logged while the worker remains
+available for the following tick. This keeps a transient rail slowdown from creating a
+second batch pass over the same due payouts.
+
 ## Audit trail
 
 Every decision records `(batchId, action, actorId, timestamp, details)` with actions

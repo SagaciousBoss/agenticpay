@@ -8,6 +8,9 @@ import { AgenticPayClientOptions } from './types.js';
 export * from './types.js';
 export * from './errors.js';
 export * from './auth.js';
+export * from './idempotency.js';
+export { SANDBOX_MOCK_PAYMENTS, createMockPaymentResult } from './sandbox.js';
+export * from './playground.js';
 
 export class AgenticPaySDK {
   readonly client: AgenticPayClient;

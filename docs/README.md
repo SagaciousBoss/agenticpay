@@ -13,14 +13,19 @@ Use this page as the entry point for the repository's maintained guides. API-spe
 
 ## Payments and billing
 
+- [Chargeback management](CHARGEBACK_MANAGEMENT.md)
 - [Instant transfers](INSTANT_TRANSFERS.md)
 - [Marketplace escrow](MARKETPLACE_ESCROW.md)
+- [Merchant risk tiering](MERCHANT_RISK_TIERING.md)
+- [Nano (XNO) settle rail](NANO_SETTLE_RAIL.md)
 - [Payment links](PAYMENT_LINKS.md)
 - [Payment correctness](PAYMENT_CORRECTNESS.md)
 - [Payment provider routing](PAYMENT_ROUTING.md)
 - [Payout approvals](PAYOUT_APPROVALS.md)
+- [Payout idempotency](PAYOUT_IDEMPOTENCY.md)
 - [Payout reliability](PAYOUT_RELIABILITY.md)
 - [Subscription usage billing](SUBSCRIPTION_USAGE_BILLING.md)
+- [Multi-currency balances](MULTI_CURRENCY_BALANCES.md)
 - [Wallet payments](WALLET_PAYMENTS.md)
 - [Withdrawal approval security](WITHDRAWAL_SECURITY.md)
 
@@ -38,6 +43,10 @@ Use this page as the entry point for the repository's maintained guides. API-spe
 - [Logging](logging.md)
 - [Security policy](security-policy.md)
 - [Audit logging](security/audit-logging.md)
+- [Provider credentials encryption](security/provider-credentials-encryption.md)
+- [AML transaction monitoring](AML_TRANSACTION_MONITORING.md)
+- [Sanctions screening](SANCTIONS_SCREENING.md)
+- [PCI DSS compliance dashboard](PCI_DSS_DASHBOARD.md)
 - [Configuration reference](config/CONFIGURATION.md)
 
 ## Keeping this index healthy

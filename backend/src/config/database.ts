@@ -591,6 +591,18 @@ export function getRecommendedIndexes(): CompositeIndex[] {
 
 // ── Read replica routing ───────────────────────────────────────────────────────
 
+export {
+  ReadReplicaRouter,
+  buildReplicaUrls,
+  getReadReplicaRouter,
+  resetReadReplicaRouterForTesting,
+  type ReadReplicaRouterOptions,
+  type LoadBalancingStrategy,
+  type ReplicaSnapshot,
+} from '../db/read-replica-router.js';
+
+export const readReplicaRouter = getReadReplicaRouter();
+
 export interface ReplicaConfig {
   host: string;
   port: number;
